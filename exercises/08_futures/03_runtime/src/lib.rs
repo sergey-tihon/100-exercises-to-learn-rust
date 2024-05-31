@@ -10,7 +10,27 @@ where
     // `T` cannot be cloned. How do you share it between the two server tasks?
     T: Display + Send + Sync + 'static,
 {
-    todo!()
+    let arc = std::sync::Arc::new(reply);
+    loop {
+        let a = first.accept();
+        let b = second.accept();
+        let v = arc.clone();
+        tokio::select! {
+            Ok((mut socket, _addr)) = a => {
+                tokio::spawn(async move {
+                    let (mut _reader, mut writer) = socket.split();
+                    writer.write_all(v.to_string().as_bytes()).await.unwrap();
+                });
+            }
+            Ok((mut socket, _addr)) = b => {
+                tokio::spawn(async move {
+                    let (mut _reader, mut writer) = socket.split();
+                    writer.write_all(v.to_string().as_bytes()).await.unwrap();
+                });
+            }
+
+        }
+    }
 }
 
 #[cfg(test)]
